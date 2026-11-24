@@ -1,4 +1,4 @@
-const CACHE_NAME = "ton-ai-shell-v1";
+const CACHE_NAME = "ton-ai-shell-v2";
 const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -22,7 +22,19 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Cache-first for same-origin app shell and built assets.
+  // Network-first for page loads so new deploys show up; fall back to cache offline.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
+        return response;
+      }).catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  // Cache-first for same-origin built assets.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
